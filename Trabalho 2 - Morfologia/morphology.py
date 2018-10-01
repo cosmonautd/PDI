@@ -8,8 +8,8 @@ import skimage.morphology
 import warnings
 warnings.filterwarnings("ignore")
 
-input_paths = ['./imgs_pb', './imgs_cinza']
-output_path = './output'
+input_paths = ["./imgs_pb", "./imgs_cinza"]
+output_path = "./output"
 
 if not os.path.exists(output_path):
     os.mkdir(output_path)
@@ -39,7 +39,7 @@ dataset = dict()
 
 for input_path in input_paths:
     for image_name in os.listdir(input_path):
-        id_ = image_name.split('.')[0]
+        id_ = image_name.split(".")[0]
         dataset[id_] = cv2.imread(os.path.join(input_path, image_name), cv2.IMREAD_GRAYSCALE)
 
 operations = [erosion, dilation, opening, closing]
@@ -52,5 +52,5 @@ for id_ in dataset:
             for sz in sizes:
                 kernel = st(size=sz)
                 output = op(dataset[id_], kernel)
-                description = '_'.join([id_, op.__name__, st.__name__, str(sz)])
-                cv2.imwrite(os.path.join(output_path, description)+'.jpg', output)
+                description = "_".join([id_, op.__name__, st.__name__, str(sz)])
+                cv2.imwrite(os.path.join(output_path, description)+".jpg", output)
