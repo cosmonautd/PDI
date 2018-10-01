@@ -52,5 +52,8 @@ for id_ in dataset:
             for sz in sizes:
                 kernel = st(size=sz)
                 output = op(dataset[id_], kernel)
+                h, w = output.shape
+                h, w = (int(0.99*h), int(0.99*w))
+                output = skimage.transform.resize(output, (h, w), preserve_range=True)
                 description = "_".join([id_, op.__name__, st.__name__, str(sz)])
                 cv2.imwrite(os.path.join(output_path, description)+".jpg", output)
