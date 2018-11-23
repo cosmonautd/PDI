@@ -13,7 +13,11 @@ import random
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 
+import pickle
+
 import elmshape
+
+desc = "ELM+HOG"
 
 def show_image(images):
     """ Displays images on screen
@@ -44,6 +48,13 @@ def show_image_surface(image):
 def rectangle_perimeter(r0, c0, width, height, shape=None, clip=False):
     rr, cc = [r0, r0 + width, r0 + width, r0], [c0, c0, c0 + height, c0 + height]
     return skimage.draw.polygon_perimeter(rr, cc, shape=shape, clip=clip)
+
+def square(r, c, h, w):
+    h_ = h if w < h else w
+    w_ = w if h < w else h
+    r_ = r if w < h else max(r - (h_ - h)/2, 0)
+    c_ = c if h < w else max(c - (w_ - w)/2, 0)
+    return int(r_), int(c_), int(h_), int(w_)
 
 solutions_path = "./all/training_solutions_rev1.csv"
 
@@ -107,35 +118,92 @@ for (id_, class_) in image_list:
             object_["props"] = skimage.measure.regionprops(object_["mask"])[0]
             object_["centroid"] = object_["props"].centroid
             object_["center_distance"] = numpy.linalg.norm(object_["centroid"] - center)
-            if object_["props"].area > 10*10:
+            if object_["props"].area > 0*0:
                 objects.append(object_)
     
     if len(objects) < 1: continue
     # Get objects of interest
     main_objects = [min(objects, key=lambda x:x['center_distance'])]
+    # main_objects = objects
 
     # Mark objects of interest
     for object_ in main_objects:
-        r0, c0 = object_["props"].bbox[0], object_["props"].bbox[1]
-        h, w = object_["props"].bbox[2] - r0, object_["props"].bbox[3] - c0
-        rr, cc = rectangle_perimeter(r0, c0, h, w)
+        r, c = object_["props"].bbox[0], object_["props"].bbox[1]
+        h, w = object_["props"].bbox[2] - r, object_["props"].bbox[3] - c
+
+        r, c, w, h = square(r, c, h, w)
+
+        rr, cc = rectangle_perimeter(r, c, h, w)
         rr[rr>=424] = 424 - 1
         cc[cc>=424] = 424 - 1
         detections[rr, cc] = numpy.array([255, 255, 255])
-    
-    # Get features from objects of interest
-    for object_ in main_objects:
-        obj = skimage.morphology.opening(object_["mask"], skimage.morphology.disk(7))
-        _, contours, _ = cv2.findContours(obj, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        if len(contours) < 1: continue
-        main_contour = max(contours, key=lambda x:len(x))
-        cv2.drawContours(detections, [main_contour], 0, (0, 255, 0), 2)
-        main_contour = numpy.reshape(main_contour, (len(main_contour), 2))
 
-        dataset[class_]['contours'].append(main_contour)
-        contour_features = descriptor.extract_contour_features(contour=main_contour)
-        features = contour_features
-        dataset[class_]['features'].append(features)
+    if desc == "ELM":
+        # Get ELM features from objects of interest
+        for object_ in main_objects:
+            obj = skimage.morphology.opening(object_["mask"], skimage.morphology.disk(7))
+            _, contours, _ = cv2.findContours(obj, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            if len(contours) < 1: continue
+            main_contour = max(contours, key=lambda x:len(x))
+            # cv2.drawContours(detections, [main_contour], 0, (0, 255, 0), 2)
+            main_contour = numpy.reshape(main_contour, (len(main_contour), 2))
+
+            dataset[class_]['contours'].append(main_contour)
+            contour_features = descriptor.extract_contour_features(contour=main_contour)
+            features = contour_features
+            dataset[class_]['features'].append(features)
+    elif desc == "CONV":
+        # Get CONV features from objects of interest
+        for object_ in main_objects:
+            obj = skimage.morphology.opening(object_["mask"], skimage.morphology.disk(7))
+            _, contours, _ = cv2.findContours(obj, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            if len(contours) < 1: continue
+            
+            r, c = object_["props"].bbox[0], object_["props"].bbox[1]
+            h, w = object_["props"].bbox[2] - r, object_["props"].bbox[3] - c
+            r, c, w, h = square(r, c, h, w)
+            object_crop = image[r:r+h, c:c+w]
+            conv_features = cv2.resize(object_crop, (28, 28))
+
+            features = conv_features
+            dataset[class_]['features'].append(features)
+    elif desc == "HOG":
+        # Get HOG features from objects of interest
+        for object_ in main_objects:
+            obj = skimage.morphology.opening(object_["mask"], skimage.morphology.disk(7))
+            _, contours, _ = cv2.findContours(obj, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            if len(contours) < 1: continue
+
+            r, c = object_["props"].bbox[0], object_["props"].bbox[1]
+            h, w = object_["props"].bbox[2] - r, object_["props"].bbox[3] - c
+            r, c, w, h = square(r, c, h, w)
+            object_crop = image[r:r+h, c:c+w]
+            resized_object = cv2.resize(object_crop, (28, 28))
+            hog_features = skimage.feature.hog(resized_object, block_norm="L2")
+
+            features = hog_features
+            dataset[class_]['features'].append(features)
+    elif desc == "ELM+HOG":
+        # Get ELM+HOG features from objects of interest
+        for object_ in main_objects:
+            obj = skimage.morphology.opening(object_["mask"], skimage.morphology.disk(7))
+            _, contours, _ = cv2.findContours(obj, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            if len(contours) < 1: continue
+            main_contour = max(contours, key=lambda x:len(x))
+            # cv2.drawContours(detections, [main_contour], 0, (0, 255, 0), 2)
+            main_contour = numpy.reshape(main_contour, (len(main_contour), 2))
+            dataset[class_]['contours'].append(main_contour)
+            contour_features = descriptor.extract_contour_features(contour=main_contour)
+
+            r, c = object_["props"].bbox[0], object_["props"].bbox[1]
+            h, w = object_["props"].bbox[2] - r, object_["props"].bbox[3] - c
+            r, c, w, h = square(r, c, h, w)
+            object_crop = image[r:r+h, c:c+w]
+            resized_object = cv2.resize(object_crop, (28, 28))
+            hog_features = skimage.feature.hog(resized_object, block_norm="L2")
+
+            features = numpy.concatenate((contour_features, hog_features))
+            dataset[class_]['features'].append(features)
     
     # Show image, segmentation and detected main objects
     # font= cv2.FONT_HERSHEY_SIMPLEX
@@ -158,7 +226,17 @@ for i, class_ in enumerate(dataset.keys()):
 X = numpy.array(X)
 Y = numpy.array(Y)
 
-numpy.savetxt("X.csv", X, delimiter=",")
-numpy.savetxt("Y.csv", Y, delimiter=",")
+if desc == "ELM":
+    numpy.savetxt("X.csv", X, delimiter=",")
+    numpy.savetxt("Y.csv", Y, delimiter=",")
+elif desc == "CONV":
+    pickle.dump(X, open("Xconv.pkl", "wb"))
+    pickle.dump(Y, open("Yconv.pkl", "wb"))
+elif desc == "HOG":
+    numpy.savetxt("X2.csv", X, delimiter=",")
+    numpy.savetxt("Y2.csv", Y, delimiter=",")
+elif desc == "ELM+HOG":
+    numpy.savetxt("X3.csv", X, delimiter=",")
+    numpy.savetxt("Y3.csv", Y, delimiter=",")
 
 print("Finished!")
