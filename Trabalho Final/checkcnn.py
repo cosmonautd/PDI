@@ -59,7 +59,7 @@ network = fully_connected(network, 2, activation='softmax')
 network = regression(network, optimizer='rmsprop', loss='categorical_crossentropy', learning_rate=0.0001)
 
 model = tflearn.DNN(network)
-model.load('models/galaxies-cnn-04.model')
+model.load('models/galaxies-cnn-00.model')
 
 def show_image(images):
     """ Displays images on screen

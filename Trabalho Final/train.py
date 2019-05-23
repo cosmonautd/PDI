@@ -4,8 +4,8 @@ import tensorflow
 from sklearn.model_selection import StratifiedKFold
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 
-X = numpy.genfromtxt("X2.csv", delimiter=",")
-Y_ = numpy.genfromtxt("Y2.csv", delimiter=",")
+X = numpy.genfromtxt("X3.csv", delimiter=",")
+Y_ = numpy.genfromtxt("Y3.csv", delimiter=",")
 
 Y = numpy.eye(2)[Y_.astype(numpy.uint8).reshape(-1)]
 

@@ -187,7 +187,7 @@ for (id_, class_) in image_list:
         # Get ELM+HOG features from objects of interest
         for object_ in main_objects:
             obj = skimage.morphology.opening(object_["mask"], skimage.morphology.disk(7))
-            _, contours, _ = cv2.findContours(obj, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            contours, _ = cv2.findContours(obj, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
             if len(contours) < 1: continue
             main_contour = max(contours, key=lambda x:len(x))
             # cv2.drawContours(detections, [main_contour], 0, (0, 255, 0), 2)
